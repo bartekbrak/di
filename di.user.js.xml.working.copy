@@ -1,0 +1,257 @@
+// ==UserScript==
+// @name           di
+// @namespace      ?
+// @description    Wersja beta słownika rozproszonego, bartek.rychlicki@gmail.com
+// @require        http://code.jquery.com/jquery-latest.pack.js
+// ==/UserScript==
+
+var password = 'ibartek'
+
+if(window === top) {
+    myFont = 'Cutive'
+    function addStyleSheet(style) {
+        var getHead = document.getElementsByTagName("HEAD")[0];
+        var cssNode = window.document.createElement('style');
+        var elementStyle = getHead.appendChild(cssNode);
+        elementStyle.innerHTML = style;
+        return elementStyle;
+    }
+
+    // addStyleSheet('@import "http://fonts.googleapis.com/css?family='+myFont+'";');
+    var cssContent = '#fly, #edit, #config, #definition, #head { font-family: ' + myFont + ', sans-serif; margin:0px;font-size:14px;}#fly, #edit, #config{ position: absolute; border-radius: 15px; padding: 10px; display: none; z-index: 666; }#fly { background-color: #0fa; max-width: 600px; opacity: 0.9; } #edit { background-color: #faa; opacity: 0.95; z-index: 667; } #config { background-color: #aaf; position: fixed; opacity: 0.95; left: 15px; bottom: 15px; display:block; } #head { width: 100px; } #definition { width: 300px; } #definition, #head { height: 25px; border: 1px solid black; margin:0px; padding:2px; vertical-align: top; line-height: 25px; }#before {line-height: 25px;opacity:0.4;font-size:8px}#toggleControls { width:10px;height:10px;background-color:black;opacity:0.5;position:absolute;right:0px;bottom:10px;font-size:10px;line-height:10px;cursor:pointer}HR {margin:0px;line-height:5px;color:black;opacity:0.5;width:80%;}#tablesHeader {cursor:pointer;}#isOn {vertical-align:middle;}';
+
+    GM_addStyle(cssContent)
+
+    var defaultDb = 'plenh', X = 0, Y = 0, showEntryDiv = '#fly', editEntryDiv = '#edit', dbDiv = '#db', imediting = false, lastHead = '', lastDefinition = '', justFinishedEditing = false, configDiv = "#config", queryLocation = 'http://luludia.ugu.pl/di/query.php', alternator = -1, minimumSelectedTextLength = 2, maximumSelectedTextLength = 50, selectedText = '', db = defaultDb, responseText = '', diRegexp = /<di>(.*)<\/di>/g, disbaleScriptRegex = /<script[^>]*>[^<]*<\/script>/gim, htmlToInsert = '', diMatch = '', currentDbEditable = false
+
+    $('body').append('<div id="fly"></div><div id="edit"><span id="before"></span>&nbsp;<input id="head" value=""/> : <textarea rows="1" cols="30" id="definition"></textarea></div><div id="config">' + '<div id="tablesHeader">słowniki</div><div id="tablesBody"></div><hr/>' + '<label for="isOn"><input type="checkbox" checked="checked" id="isOn"">&nbsp;włączony' + '</label><div id="toggleControls"></div><br/><a href="mailto:bartek.rychlicki@gmail.com?subject=Słownik%20&amp;body=Cześć">feedback</a></div>')
+
+    $("#toggleControls").click(function() {
+        //UI, pops in and out the config box
+        alternator = alternator * -1
+        moveme = ($("#config").width() + 25) * alternator
+        $("#config").animate({
+            "left" : "-=" + moveme + "px"
+        }, "fast")
+    })
+    loadTheDictionaries = function() {
+        //load the dictionaries at the begiinning and set the one to use
+        GM_xmlhttpRequest({
+            method : "GET",
+            url : queryLocation + '?action=list_tables',
+            onload : function(res) {
+                mymatch = /<di>(.*)<\/di>/g.exec(res.responseText)
+                xmlDoc = $.parseXML(mymatch[0])
+                $xml = $(xmlDoc)
+                $table = $xml.find("ditable")
+                $table.each(function(index) {
+                    $('#tablesBody').append('<input name="ditable" type="radio" value="' + $(this).text() + '">' + $(this).text() + '</input><br/>')
+                });
+                //select an option
+                $('input[name=ditable]:eq(1)').attr('checked', 'checked')
+                $('input[name=ditable]').change(setEditing)
+                setEditing()
+            }
+        })
+    }
+    setEditing = function() {
+        //test the password and enable editing if correct, for home-grwon hackers, don't waste your time tampering with this,
+        //the password is checked with every save to the db in the backend, this is only for the interface
+        GM_xmlhttpRequest({
+            method : "GET",
+            url : queryLocation + '?db=' + $('input:radio[name=ditable]:checked').val() + '&action=test_password&password=' + password,
+            onload : function(res) {
+                mymatch = /<di>(.*)<\/di>/g.exec(res.responseText)
+                xmlDoc = $.parseXML(mymatch[0])
+                $xml = $(xmlDoc)
+                // alert(
+                currentDbEditableString = $xml.find("passwordcorrect").text()
+                currentDbEditable = (currentDbEditableString == "1") ? true : false
+                // )
+            }
+        })
+
+    }
+    //return selected text
+    getSelected = function() {
+        var t = '';
+        if(window.getSelection) {
+            t = window.getSelection()
+        } else if(document.getSelection) {
+            t = document.getSelection()
+        } else if(document.selection) {
+            t = document.selection.createRange().text
+        }
+        //ponizej jest hack na dwa typy apostrofów, to trzeba kiedys poprawic na bardziej poprawne rozwiazanie
+        return String($.trim(t).replace("’", "'"))
+    }
+    //main trick
+    lookUpSelectedText = function(e) {
+        if(!$(editEntryDiv).is(":visible")) {
+            selectedText = getSelected()
+            //that's for editbox that can't get its own x&y
+            Y = e.pageY
+            X = e.pageX
+            if(selectedText.length >= minimumSelectedTextLength && selectedText.length <= maximumSelectedTextLength && $('#isOn').attr('checked')) {
+                GM_xmlhttpRequest({
+                    method : "GET",
+                    url : queryLocation + '?db=' + $('input:radio[name=ditable]:checked').val() + '&s=' + encodeURIComponent(selectedText) + '&action=query',
+                    onload : function(ajaxResponseValue) {
+                        //short
+                        responseText = ajaxResponseValue.responseText
+                        responseText = responseText.replace(disbaleScriptRegex, "<disabledscript/>")
+                        diMatch = /<di>(.*)<\/di>/g.exec(responseText)
+                        xmlDoc = $.parseXML(diMatch[0])
+                        // unsafeWindow.console.log(diMatch[0])
+                        $xml = $(xmlDoc)
+                        $row = $xml.find("row")
+                        // $message = $xml.find("message")
+                        // $('#debugDiv').html($message.text())
+                        if($row.length == 0) {
+                            lastHead = selectedText
+                            lastDefinition = ''
+                            // return true
+                            htmlToInsert = '?'
+                        } else if(($row.length == 1 && $row.find("head").text() == selectedText.toLowerCase())) {
+                            htmlToInsert = $row.find("definition").text()
+                            lastHead = selectedText
+                            lastDefinition = htmlToInsert
+                        } else {
+                            htmlToInsert = ''
+                            $row.each(function(index) {
+                                htmlToInsert += "<b>" + $(this).find("head").text() + "</b> " + $(this).find("definition").text() + "<br/>"
+                                lastHead = $row.find("head").text()
+                                lastDefinition = $row.find("definition").text()
+                            });
+                        }
+
+                        $(showEntryDiv).html(htmlToInsert);
+                        $(showEntryDiv).css('top', e.pageY - 10)
+                        $(showEntryDiv).css('left', e.pageX + 20)
+
+                        $(showEntryDiv).fadeIn('fast')
+                    }
+                })
+            }
+        }
+    }
+    //triggered after user changes head form in the edit box
+    refreshEditBox = function() {
+        $('#definition').attr('disabled', 'disabled');
+        $('#before').fadeOut('fast', function() {
+            $('#before').html('')
+            $('#before').show()
+        })
+        GM_xmlhttpRequest({
+            method : "GET",
+            url : queryLocation + '?db=' + $('input:radio[name=ditable]:checked').val() + '&s=' + encodeURIComponent($('#head').val()) + '&action=query&raw=1',
+            onload : function(ajaxResponseValue) {
+                responseText = ajaxResponseValue.responseText
+                responseText = responseText.replace(disbaleScriptRegex, "<disabledscript/>")
+                diMatch = /<di>(.*)<\/di>/g.exec(responseText)
+                // unsafeWindow.console.log($('#head').html() + responseText)
+                xmlDoc = $.parseXML(diMatch[0])
+                $xml = $(xmlDoc)
+                $row = $xml.find("row")
+                if($row.length > 1)
+                    alert('something bad is going on - ' + $('#head').html() + " There is more than one entry in the table for this query. Report that.")
+                else if($row.length == 0) {
+                    $('#definition').val('')
+                } else if($row.length == 1) {
+                    // $('#head').val($xml.find("head").text())
+                    $('#definition').val($xml.find("definition").text())
+                }
+                $('#definition').removeAttr('disabled');
+                $("#definition").focus()
+
+            }
+        })
+
+    }
+
+    $(document).ready(function() {
+        $(document).bind("mouseup", lookUpSelectedText)
+        $('#head').bind('focusout', refreshEditBox)
+        loadTheDictionaries()
+    })
+    //hide edit box after editing
+    $('body').mousemove(function() {
+        if($(showEntryDiv).is(":visible"))
+            $(showEntryDiv).fadeOut('fast')
+        if(justFinishedEditing) {
+            $(editEntryDiv).fadeOut('fast')
+            $('#definition').val('');
+            $('#head').val('');
+            $('#before').html('')
+        }
+    })
+    //save and other keypress events
+    $(window).keypress(function(event) {
+
+        // "e",
+        if(event.which == 101 && currentDbEditable) {
+            //reset the form
+            $('#definition').removeAttr('disabled');
+            $('#head').removeAttr('disabled');
+            justFinishedEditing = false
+            $(showEntryDiv).fadeOut('fast')
+            var selectedText = getSelected()
+            if(selectedText.length > minimumSelectedTextLength && selectedText.length < maximumSelectedTextLength && $('#isOn').attr('checked')) {
+                // $("#hid").html(lastHeadId)
+                $("#head").val(selectedText.toLowerCase())
+                refreshEditBox()
+
+                $(editEntryDiv).css('top', Y - 20)
+                $(editEntryDiv).css('left', X + 20)
+                $(editEntryDiv).fadeIn('fast')
+                $("#definition").focus()
+
+            }
+            return true
+        }
+
+        //escape, hide edit box
+        if(event.keyCode == 27) {
+            $(editEntryDiv).fadeOut('fast');
+            return true
+        }
+
+        //don't save if the user is editing word form, #definition will only be reloaded after it looses it
+        if($("#head").is(":focus"))
+            return true
+        if(!(event.which == 13))
+            return true
+        if(!$('#definition').is(":visible"))
+            return true;
+
+        $('#head').attr('disabled', 'disabled')
+        $('#definition').attr('disabled', 'disabled')
+        GM_xmlhttpRequest({
+            url : queryLocation + '?db=' + $('input:radio[name=ditable]:checked').val() + '&head=' + $('input#head').val() + '&action=write&definition=' + encodeURIComponent($('textarea#definition').val()) + '&password=' + password,
+            method : "GET",
+            onload : function(res) {
+                $('#before').html(decodeURIComponent(res.responseText))
+                $(editEntryDiv).css('top', event.pageY - 20)
+                $(editEntryDiv).css('left', event.pageX + 20)
+
+                // X = e.pageX
+                // Y = e.pageY
+            }
+        });
+        if(event.ctrlKey) {
+            $('#head').removeAttr('disabled')
+            $('#definition').removeAttr('disabled')
+            //focus and move carret to the end
+            // $('#head').val()
+            $("#head").focus()
+            var v= $("#head").val();
+            $("#head").val('');
+            $("#head").val(v);
+        } else {
+            justFinishedEditing = true
+        }
+        event.preventDefault()
+        return false
+
+    })
+}

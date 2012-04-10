@@ -1,0 +1,1 @@
+/home/bartek/.mozilla/firefox/jnyidczy.default/gm_scripts/di/di.user.js

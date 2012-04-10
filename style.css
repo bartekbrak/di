@@ -1,0 +1,47 @@
+#fly {
+	background-color: #afa;
+	position: absolute;
+	min-width: 300px;
+	max-width: 600px;
+	opacity: 0.9;
+	border-radius: 15px;
+	padding: 15px;
+	display: none;
+	z-index: 666;
+}
+#edit {
+	background-color: #faa;
+	position: absolute;
+	opacity: 0.95;
+	border-radius: 15px;
+	padding: 15px;
+	display: none;
+	z-index: 667;
+}
+#config {
+	background-color: #aaf;
+	position: fixed;
+	opacity: 0.8;
+	border-radius: 15px;
+	padding: 15px;
+	left: 15px;
+	bottom: 15px;
+}
+#head {
+	height: 20px;
+	width: 100px;
+	border: 1px solid black;
+	margin: 0px;
+}
+#definition {
+	height: 20px;
+	width: 300px;
+	border: 1px solid black;
+	margin: 0 0 -2px 0
+}
+#submit {
+	border: 1px solid black;
+	height: 20px;
+	margin: 0 0 -2px 0;
+	display: none;
+}
