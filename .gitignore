@@ -3,3 +3,5 @@
 .settings
 phpinfo.php
 demo
+tests
+ftp

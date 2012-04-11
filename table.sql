@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS `ania_en_pl` (
+CREATE TABLE IF NOT EXISTS `sample_database_name` (
   `head` varchar(128) NOT NULL,
   `definition` text,
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
