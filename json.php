@@ -1,19 +1,24 @@
 <?php
-/*
-This is the json backend for the project. This is the main backend
-*/
 
+/*
 header("content-type: text/javascript");
-//header("content-type: Access-Control-Allow-Origin: *");
-//header("content-type: Access-Control-Allow-Methods: GET");
+*/
+header("content-type: application/json");
+
 
 require('passwords.php');
 require ('mysqllogin.php');
 
+
+function mylog($msg) {
+    $fd = fopen("log", "a");
+    fwrite($fd, $msg . "\n");
+    fclose($fd);
+}
+
 function hid($string, $db)
 {
     $query = sprintf("SELECT id FROM %s WHERE head='%s'", mysql_real_escape_string($db), mysql_real_escape_string($string));
-    //    mylog($query);
     $result = mysql_query($query);
     if (!$result)
         die("<error>Database access failed: " . mysql_error() . "\n<br />on query:" . $query . "</error>");
@@ -52,7 +57,7 @@ function query($string, $db, $raw = false, $returnArray = Array())
     return $returnArray;
 }
 
-if (isset($_GET['action']) && isset($_GET['callback']) && isset($_GET['db'])) {
+if (isset($_GET['action']) &&  isset($_GET['db'])) {
     $obj = (object)null;
     switch ($_GET['action']) {
         case "query" :
@@ -62,11 +67,13 @@ if (isset($_GET['action']) && isset($_GET['callback']) && isset($_GET['db'])) {
             $string = trim($_GET['string']);
             $db = trim($_GET['db']);
             $obj->definitions = query($string, $db, $raw);
+            break;
         case "test_password":
             $obj->currentDbEditable =
                 (isset($_GET['password']) && $_GET['password'] == $passwords[$_GET['db']])
                     ? True
                     : False;
+            break;
         case "write":
             mb_internal_encoding("UTF-8");
             mb_internal_encoding("UTF-8");
@@ -80,8 +87,8 @@ if (isset($_GET['action']) && isset($_GET['callback']) && isset($_GET['db'])) {
                 isset($_GET['password'])
 //                && $_GET['password'] == $passwords[$_GET['db']]
             ) {
-                $definition = urldecode(trim(strip_tags($_GET['definition'])));
-                $string = urldecode(trim(strip_tags($_GET['string'])));
+                $definition = trim(strip_tags($_GET['definition'],'<br><b><i>'));
+                $string = trim(strip_tags($_GET['string']));
                 $db = $_GET['db'];
                 $hid = hid($string, $db);
                 $result = mysql_query("SET NAMES 'utf8'");
@@ -116,9 +123,13 @@ if (isset($_GET['action']) && isset($_GET['callback']) && isset($_GET['db'])) {
                 $obj->responseMessage = 'OK. Saved';
             }
             else $obj->responseMessage = 'error';
+            break;
         default:
-            echo $_GET['callback'] . '(' . json_encode($obj) . ');';
             break;
     }
+    if (isset($_GET['callback']))
+        echo $_GET['callback'] . '(' . json_encode($obj) . ');';
+    else
+        echo json_encode($obj);
 }
 ?>
