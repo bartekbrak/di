@@ -1,10 +1,6 @@
 <?php
 
-/*
-header("content-type: text/javascript");
-*/
-header("content-type: application/json");
-
+header("content-type: application/json"); // or text/javascript
 
 require('passwords.php');
 require ('mysqllogin.php');
@@ -18,6 +14,9 @@ function mylog($msg) {
 
 function hid($string, $db)
 {
+    if (!mysql_query("SET NAMES 'utf8'"))
+        die("db error on SET NAMES 'utf8':<br/>" . mysql_error() . "");
+
     $query = sprintf("SELECT id FROM %s WHERE head='%s'", mysql_real_escape_string($db), mysql_real_escape_string($string));
     $result = mysql_query($query);
     if (!$result)
@@ -34,9 +33,9 @@ function query($string, $db, $raw = false, $returnArray = Array())
     if (!mysql_query("SET NAMES 'utf8'"))
         die("db error on SET NAMES 'utf8':<br/>" . mysql_error() . "");
 
-    $query = sprintf("SELECT id,head,definition FROM %s WHERE head='%s'", //@0
+    $query = sprintf("SELECT id,head,definition FROM %s WHERE head='%s'",
         mysql_real_escape_string($db), mysql_real_escape_string($string));
-    //@1
+
     $result = mysql_query($query);
     if (!$result)
         die("Database access failed: " . mysql_error() . "\n<br />on query:" . $query . "");
@@ -46,7 +45,7 @@ function query($string, $db, $raw = false, $returnArray = Array())
             $linkages = Array();
             preg_match_all("/\[\[(.*?)\]\]/", $row[2], $linkages);
             foreach ($linkages[1] as $linkedHead)
-                $returnArray = query($linkedHead, $db, $returnArray);
+                $returnArray = query($linkedHead, $db, $raw, $returnArray);
             $row[2] = trim(preg_replace("/\[\[(.*?)\]\]/", "", $row[2]));
         }
         if (strlen($row[2]) > 0
@@ -121,6 +120,18 @@ if (isset($_GET['action']) &&  isset($_GET['db'])) {
 
                     $hid = mysql_insert_id();
                 }
+
+                //CVS
+                $query = sprintf("INSERT INTO %s(head,definition, id) VALUES('%s','%s', NULL)",
+                        mysql_real_escape_string($db."_versions"),
+                        mysql_real_escape_string($string),
+                        mysql_real_escape_string($definition)
+                    );
+
+                    $result = mysql_query($query);
+                    if (!$result)
+                        die("Database access failed: " . mysql_error() . "\n<br />on query:" . $query);
+
                 $obj->responseMessage = 'OK. Saved';
             }
             else $obj->responseMessage = 'error';

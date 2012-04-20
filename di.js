@@ -1,24 +1,31 @@
 // ==UserScript==
 // @id             8721382
 // @name           di
-// @version        1.0
+// @version        1.1
 // @namespace
 // @author         bartek
 // @description    opis
-// @include        *
+// @include        /^https?:\/\/(www\.)?dw\.de.*/
+// @include        /^https?:\/\/(www\.)?zeit\.de.*/
 // @exclude        diki.pl
-// @exclude        google.*
+// @exclude        /^https?:\/\/(www\.)?google\..*/
 // @run-at         document-end
 // @require        http://code.jquery.com/jquery-latest.pack.js
 // ==/UserScript==
 
-defaultDb = 'de_pl'
+db = 'de_pl'
 password  = 'hochsen'
 
 //it shouldn't be necessary to edit below this line
 ////////////////////////////////////////////////////////
-
 if (window === top) {
+
+if (typeof db === 'undefined' || typeof password === 'undefined' ) {
+    alert('define db and/or password in the script file')
+    throw new Error()
+}
+
+
     var X = 0,
         Y = 0,
         showEntryDiv = '#fly',
@@ -34,7 +41,6 @@ if (window === top) {
         minimumSelectedTextLength = 2,
         maximumSelectedTextLength = 50,
         selectedText = '',
-        db = defaultDb,
         htmlToInsert = '',
         currentDbEditable = false,
         styleString = 'p.crowParagraph {  padding:0px;    margin:0px; padding-left:10px;}#fly, #edit, #config, #definition, #head {    font-family : Arial, sans-serif;    margin      : 0px;    font-size   : 14px;}#fly, #edit, #config {    position      : absolute;    border-radius : 15px;    padding       : 10px;    display       : none;    z-index       : 666;}#fly {    background-color : #0fa;    max-width        : 600px;    opacity          : 0.9;}#edit {    background-color : #faa;    opacity          : 0.95;    z-index          : 667;}#config {    background-color : #aaf;    position         : fixed;    opacity          : 0.95;    left             : 15px;    bottom           : 15px;    display          : block;}#head {    width : 100px;}#definition {    width : 300px;}#definition, #head {    height         : 25px;    border         : 1px solid black;    margin         : 0px;    padding        : 2px;    vertical-align : top;    line-height    : 25px;    overflow       : hidden;}#before {    line-height : 25px;    opacity     : 0.4;    font-size   : 8px}#toggleControls {    width            : 10px;    height           : 10px;    background-color : black;    opacity          : 0.5;    position         : absolute;    right            : 0px;    bottom           : 10px;    font-size        : 10px;    line-height      : 10px;    cursor           : pointer}HR {    margin      : 0px;    line-height : 5px;    color       : black;    opacity     : 0.5;    width       : 80%;}#isOn {    vertical-align : middle;}'
@@ -43,6 +49,7 @@ if (window === top) {
 
 
         processQueryResponse = function(data) {
+            GM_log(data)
             if (data.definitions.length === 0) {
                 lastHead = selectedText
                 lastDefinition = ''
@@ -134,10 +141,8 @@ if (window === top) {
         $("body").css("cursor", "auto")
     }
     //triggered after user changes head form in the edit box
-    refreshEditBox = function(string) {
-        if (!string) {
-            var string = $('#head').val()
-        }
+    refreshEditBox = function() {
+        var string = $('#head').val()
         $("body").css("cursor", "progress")
         $('#definition').attr('disabled', 'disabled');
         $('#before').fadeOut('fast', function() {
@@ -218,7 +223,7 @@ if (window === top) {
         '<label for="isOn"></label><input type="checkbox" checked="checked" id="isOn"">on / off' + '<div id="toggleControls"></div>' + '<br/>' + '<a href="mailto:bartek.rychlicki@gmail.com?subject=Słownik%20&amp;body=Cześć">e-mail author</a>&nbsp;&nbsp;' + '</div>'
         $('body').append(htmlToAppend)
         //hide edit box after editing
-        $('body').mousemove(function() {
+        $('body').mousemove(function() { // .click | .mousemove
             if ($(showEntryDiv).is(":visible")) {
                 $(showEntryDiv).fadeOut('fast')
             }
@@ -250,7 +255,7 @@ if (window === top) {
                 $(showEntryDiv).fadeOut('fast')
                 var selectedText = getSelected()
                 if (selectedText.length > minimumSelectedTextLength && selectedText.length < maximumSelectedTextLength && $('#isOn').attr('checked')) {
-                    $("#head").val(selectedText.toLowerCase())
+                    $("#head").val(selectedText) //or .toLowerCase()
                     refreshEditBox()
                     $(editEntryDiv).css('top', Y - 20)
                     $(editEntryDiv).css('left', X + 20)

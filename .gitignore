@@ -5,3 +5,5 @@ phpinfo.php
 demo
 tests
 ftp
+log
+mysqllogin.php
