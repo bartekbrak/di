@@ -49,7 +49,6 @@ if (typeof db === 'undefined' || typeof password === 'undefined' ) {
 
 
         processQueryResponse = function(data) {
-            GM_log(data)
             if (data.definitions.length === 0) {
                 lastHead = selectedText
                 lastDefinition = ''
